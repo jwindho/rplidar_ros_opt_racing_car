@@ -362,8 +362,10 @@ int main(int argc, char * argv[]) {
                 continue;
             }
             op_result = drv->ascendScanData(nodes, count);
+            
             float angle_min = DEG2RAD(0.0f);
-            float angle_max = DEG2RAD(360.0f);
+            float angle_max = DEG2RAD(30.0f);
+
             if (op_result == SL_RESULT_OK) {
                 if (angle_compensate) {
                     const int angle_compensate_nodes_count = 360*angle_compensate_multiple;
@@ -407,14 +409,11 @@ int main(int argc, char * argv[]) {
                     int start_node = 0, end_node = 0;
                     int i = 0;
                     // find the first valid node and last valid node
-                    while (nodes[i++].dist_mm_q2 == 0);
-                    start_node = i-1;
-                    i = count -1;
-                    while (nodes[i--].dist_mm_q2 == 0);
-                    end_node = i+1;
+                    while (getAngle(nodes[i]) < 0 || getAngle(nodes[i]) > 30) i++;
+                    start_node = i;
 
-                    angle_min = DEG2RAD(getAngle(nodes[start_node]));
-                    angle_max = DEG2RAD(getAngle(nodes[end_node]));
+                    while (getAngle(nodes[i]) <= 30 && i < count) i++;
+                    end_node = i-1;
 
                     int filtered_Count = 0;
 
@@ -427,11 +426,11 @@ int main(int argc, char * argv[]) {
 			            }
 			        }
             
-                publish_scan(&scan_pub, filtered_nodes, filtered_Count,
-                             start_scan_time, scan_duration, inverted,
-                             angle_min, angle_max, max_distance,
-                             frame_id);
-                }
+                    publish_scan(&scan_pub, filtered_nodes, filtered_Count,
+                                start_scan_time, scan_duration, inverted,
+                                angle_min, angle_max, max_distance,
+                                frame_id);
+                    }
             
             } 
         }
