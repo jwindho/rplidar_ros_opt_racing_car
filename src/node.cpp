@@ -89,19 +89,13 @@ void publish_scan(ros::Publisher *pub,
     if (!reverse_data) {
         for (size_t i = 0; i < node_count; i++) {
             float read_value = (float) nodes[i].dist_mm_q2/4.0f/1000;
-            if (read_value == 0.0)
-                scan_msg.ranges[i] = std::numeric_limits<float>::infinity();
-            else
-                scan_msg.ranges[i] = read_value;
+            scan_msg.ranges[i] = read_value;
             scan_msg.intensities[i] = (float) (nodes[i].quality >> 2);
         }
     } else {
         for (size_t i = 0; i < node_count; i++) {
             float read_value = (float)nodes[i].dist_mm_q2/4.0f/1000;
-            if (read_value == 0.0)
-                scan_msg.ranges[node_count-1-i] = std::numeric_limits<float>::infinity();
-            else
-                scan_msg.ranges[node_count-1-i] = read_value;
+            scan_msg.ranges[node_count-1-i] = read_value;
             scan_msg.intensities[node_count-1-i] = (float) (nodes[i].quality >> 2);
         }
     }
@@ -393,10 +387,22 @@ int main(int argc, char * argv[]) {
                         }
                     }
   
-                    publish_scan(&scan_pub, angle_compensate_nodes, angle_compensate_nodes_count,
+                    int compensate_count = 0;
+
+		            sl_lidar_response_measurement_node_hq_t compensate_nodes[8192];
+		            for(int i = 0; i <= angle_compensate_nodes_count; i++)
+ 		            {
+                        if(angle_compensate_nodes[i].dist_mm_q2/4.0f/1000 > 0 && angle_compensate_nodes[i].dist_mm_q2/4.0f/1000 < 8) {
+			                compensate_nodes[compensate_count++] = angle_compensate_nodes[i];
+			            }
+			        }
+
+
+                    publish_scan(&scan_pub, compensate_nodes, compensate_count,
                              start_scan_time, scan_duration, inverted,
                              angle_min, angle_max, max_distance,
                              frame_id);
+                
                 } else {
                     int start_node = 0, end_node = 0;
                     int i = 0;
@@ -410,20 +416,24 @@ int main(int argc, char * argv[]) {
                     angle_min = DEG2RAD(getAngle(nodes[start_node]));
                     angle_max = DEG2RAD(getAngle(nodes[end_node]));
 
-                    publish_scan(&scan_pub, &nodes[start_node], end_node-start_node +1,
+                    int filtered_Count = 0;
+
+		            sl_lidar_response_measurement_node_hq_t filtered_nodes[8192];
+
+		            for(int i = start_node; i <= end_node; i++)
+ 		            {
+                        if(nodes[i].dist_mm_q2/4.0f/1000 > 0 && nodes[i].dist_mm_q2/4.0f/1000 < 8) {
+			                filtered_nodes[filtered_Count++] = nodes[i];
+			            }
+			        }
+            
+                publish_scan(&scan_pub, filtered_nodes, filtered_Count,
                              start_scan_time, scan_duration, inverted,
                              angle_min, angle_max, max_distance,
                              frame_id);
-               }
-            } else if (op_result == SL_RESULT_OPERATION_FAIL) {
-                // All the data is invalid, just publish them
-                float angle_min = DEG2RAD(0.0f);
-                float angle_max = DEG2RAD(359.0f);
-                publish_scan(&scan_pub, nodes, count,
-                             start_scan_time, scan_duration, inverted,
-                             angle_min, angle_max, max_distance,
-                             frame_id);
-            }
+                }
+            
+            } 
         }
 
         ros::spinOnce();
