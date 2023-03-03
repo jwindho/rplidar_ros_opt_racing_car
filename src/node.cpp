@@ -368,6 +368,7 @@ int main(int argc, char * argv[]) {
             float angle_max = DEG2RAD(30.0f);
 
             if (op_result == SL_RESULT_OK) {
+                
                 if (angle_compensate) {
                      const int angle_compensate_nodes_count = 360 * angle_compensate_multiple;
                      int angle_compensate_offset = 0;
@@ -406,18 +407,26 @@ int main(int argc, char * argv[]) {
                              frame_id);
                 
                 } else {
+
+                    const int ANGLE_MIN = 0;
+                    const int ANGLE_MAX = 30;
+                    const int MAX_NODES = 8192;
+                    
+                    sl_lidar_response_measurement_node_hq_t filtered_nodes[MAX_NODES];
+                    int filtered_Count = 0;
                     int start_node = 0, end_node = 0;
                     int i = 0;
+
                     // find the first valid node and last valid node
-                    while (getAngle(nodes[i]) < 0 || getAngle(nodes[i]) > 30) i++;
+                    while (getAngle(nodes[i]) < ANGLE_MIN || getAngle(nodes[i]) > ANGLE_MAX) i++;
                     start_node = i;
 
-                    while (getAngle(nodes[i]) <= 30 && i < count) i++;
+                    while (getAngle(nodes[i]) <= ANGLE_MAX && i < count) i++;
                     end_node = i-1;
 
-                    int filtered_Count = 0;
+                    
 
-		            sl_lidar_response_measurement_node_hq_t filtered_nodes[8192];
+		           
 
 		            for(int i = start_node; i <= end_node; i++)
  		            {
