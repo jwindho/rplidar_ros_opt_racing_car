@@ -67,6 +67,7 @@ void publish_scan(ros::Publisher *pub,
     const bool reversed = angle_max > angle_min;
 
 
+
     scan_count++;
     
     const float angle_min_rad = angle_offset + M_PI - (reversed ? angle_max : angle_min);
@@ -102,8 +103,6 @@ void publish_scan(ros::Publisher *pub,
 
     pub->publish(scan_msg);
 }
-
-
 
 bool getRPLIDARDeviceInfo(ILidarDriver * drv)
 {
@@ -370,24 +369,23 @@ int main(int argc, char * argv[]) {
 
             if (op_result == SL_RESULT_OK) {
                 if (angle_compensate) {
-                    const int angle_compensate_nodes_count = 360*angle_compensate_multiple;
-                    int angle_compensate_offset = 0;
-                    sl_lidar_response_measurement_node_hq_t angle_compensate_nodes[angle_compensate_nodes_count];
-                    memset(angle_compensate_nodes, 0, angle_compensate_nodes_count*sizeof(sl_lidar_response_measurement_node_hq_t));
+                     const int angle_compensate_nodes_count = 360 * angle_compensate_multiple;
+                     int angle_compensate_offset = 0;
+                    std::vector<sl_lidar_response_measurement_node_hq_t> angle_compensate_nodes(angle_compensate_nodes_count);
 
-                    int i = 0, j = 0;
-                    for( ; i < count; i++ ) {
+                    for (int i = 0; i < count; i++) {
                         if (nodes[i].dist_mm_q2 != 0) {
-                            float angle = getAngle(nodes[i]);
-                            int angle_value = (int)(angle * angle_compensate_multiple);
+                        float angle = getAngle(nodes[i]);
+                        int angle_value = static_cast<int>(angle * angle_compensate_multiple);
                             if ((angle_value - angle_compensate_offset) < 0) angle_compensate_offset = angle_value;
-                            for (j = 0; j < angle_compensate_multiple; j++) {
 
-                                int angle_compensate_nodes_index = angle_value-angle_compensate_offset+j;
-                                if(angle_compensate_nodes_index >= angle_compensate_nodes_count)
-                                    angle_compensate_nodes_index = angle_compensate_nodes_count-1;
-                                angle_compensate_nodes[angle_compensate_nodes_index] = nodes[i];
-                            }
+                            int start = angle_value - angle_compensate_offset;
+                            int end = start + angle_compensate_multiple;
+                        if (end > angle_compensate_nodes_count) end = angle_compensate_nodes_count;
+
+                            for (int j = start; j < end; j++) {
+                                angle_compensate_nodes[j] = nodes[i];
+                             }
                         }
                     }
   
