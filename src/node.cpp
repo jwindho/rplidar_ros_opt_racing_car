@@ -60,15 +60,18 @@ void publish_scan(ros::Publisher *pub,
                   float max_distance,
                   std::string frame_id)
 {
+    
     static int scan_count = 0;
-    sensor_msgs::LaserScan scan_msg;
+    const float range_min = 0.15f;
+    const float angle_offset = M_PI;
+    const bool reversed = angle_max > angle_min;
 
-    scan_msg.header.stamp = start;
-    scan_msg.header.frame_id = frame_id;
+
+    
+    
     scan_count++;
     
-    bool reversed = (angle_max > angle_min);
-    if ( reversed ) {
+     if ( reversed ) {
       scan_msg.angle_min =  M_PI - angle_max;
       scan_msg.angle_max =  M_PI - angle_min;
     } else {
@@ -78,13 +81,26 @@ void publish_scan(ros::Publisher *pub,
     scan_msg.angle_increment =
         (scan_msg.angle_max - scan_msg.angle_min) / (double)(node_count-1);
 
-    scan_msg.scan_time = scan_time;
-    scan_msg.time_increment = scan_time / (double)(node_count-1);
-    scan_msg.range_min = 0.15;
-    scan_msg.range_max = max_distance;//8.0;
+        
 
+    const float time_increment = scan_time / (node_count - 1);
+    sensor_msgs::LaserScan scan_msg;
+    scan_msg.header.stamp = start;
+    scan_msg.header.frame_id = frame_id;
+    scan_msg.angle_min = angle_min_rad;
+    scan_msg.angle_max = angle_max_rad;
+    scan_msg.angle_increment = angle_increment;
+    scan_msg.time_increment = time_increment;
+    scan_msg.scan_time = scan_time;
+    scan_msg.range_min = range_min;
+    scan_msg.range_max = max_distance;
     scan_msg.intensities.resize(node_count);
     scan_msg.ranges.resize(node_count);
+
+    
+    
+
+
     bool reverse_data = (!inverted && reversed) || (inverted && !reversed);
     if (!reverse_data) {
         for (size_t i = 0; i < node_count; i++) {
