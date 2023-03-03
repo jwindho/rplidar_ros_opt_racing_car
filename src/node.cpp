@@ -418,23 +418,22 @@ int main(int argc, char * argv[]) {
                     int i = 0;
 
                     // find the first valid node and last valid node
-                    while (getAngle(nodes[i]) < ANGLE_MIN || getAngle(nodes[i]) > ANGLE_MAX) i++;
-                    start_node = i;
+                   for(; i < count && (getAngle(nodes[i]) < ANGLE_MIN || getAngle(nodes[i]) > ANGLE_MAX); ++i) {}
 
-                    while (getAngle(nodes[i]) <= ANGLE_MAX && i < count) i++;
-                    end_node = i-1;
+                    int start_node = i;
 
-                    
+                    // find the last valid node
+                    for(; i < count && getAngle(nodes[i]) <= ANGLE_MAX; ++i) {}
 
-		           
+                    int end_node = i - 1;
 
-		            for(int i = start_node; i <= end_node; i++)
- 		            {
-                        if(nodes[i].dist_mm_q2/4.0f/1000 > 0 && nodes[i].dist_mm_q2/4.0f/1000 < 8) {
-			                filtered_nodes[filtered_Count++] = nodes[i];
-			            }
-			        }
-            
+                    // filter nodes
+                    for(int i = start_node; i <= end_node; ++i) {
+                        const float distance = nodes[i].dist_mm_q2 / 4.0f / 1000;
+                        if(distance > 0 && distance < 8) {
+                            filtered_nodes[filtered_count++] = nodes[i];
+                        }
+                    }
                     publish_scan(&scan_pub, filtered_nodes, filtered_Count,
                                 start_scan_time, scan_duration, inverted,
                                 angle_min, angle_max, max_distance,
