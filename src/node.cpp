@@ -67,21 +67,12 @@ void publish_scan(ros::Publisher *pub,
     const bool reversed = angle_max > angle_min;
 
 
-    
-    
     scan_count++;
     
-     if ( reversed ) {
-      scan_msg.angle_min =  M_PI - angle_max;
-      scan_msg.angle_max =  M_PI - angle_min;
-    } else {
-      scan_msg.angle_min =  M_PI - angle_min;
-      scan_msg.angle_max =  M_PI - angle_max;
-    }
-    scan_msg.angle_increment =
-        (scan_msg.angle_max - scan_msg.angle_min) / (double)(node_count-1);
+    const float angle_min_rad = angle_offset + M_PI - (reversed ? angle_max : angle_min);
+    const float angle_max_rad = angle_offset + M_PI - (reversed ? angle_min : angle_max);
+    const float angle_increment = (angle_max_rad - angle_min_rad) / (node_count - 1);
 
-        
 
     const float time_increment = scan_time / (node_count - 1);
     sensor_msgs::LaserScan scan_msg;
@@ -101,23 +92,18 @@ void publish_scan(ros::Publisher *pub,
     
 
 
-    bool reverse_data = (!inverted && reversed) || (inverted && !reversed);
-    if (!reverse_data) {
-        for (size_t i = 0; i < node_count; i++) {
-            float read_value = (float) nodes[i].dist_mm_q2/4.0f/1000;
-            scan_msg.ranges[i] = read_value;
-            scan_msg.intensities[i] = (float) (nodes[i].quality >> 2);
-        }
-    } else {
-        for (size_t i = 0; i < node_count; i++) {
-            float read_value = (float)nodes[i].dist_mm_q2/4.0f/1000;
-            scan_msg.ranges[node_count-1-i] = read_value;
-            scan_msg.intensities[node_count-1-i] = (float) (nodes[i].quality >> 2);
-        }
+    for (size_t i = 0; i < node_count; ++i) {
+        const float read_value = nodes[i].dist_mm_q2 / 4.0f / 1000.0f;
+
+        const size_t index = (inverted != reversed) ? (node_count - 1 - i) : i;
+        scan_msg.ranges[index] = read_value;
+        scan_msg.intensities[index] = nodes[i].quality >> 2;
     }
 
     pub->publish(scan_msg);
 }
+
+
 
 bool getRPLIDARDeviceInfo(ILidarDriver * drv)
 {
