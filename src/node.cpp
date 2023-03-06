@@ -42,6 +42,7 @@
 #endif
 
 #define DEG2RAD(x) ((x)*M_PI/180.)
+#define RAD2DEG(x) ((x)*180/M_PI)
 
 enum {
     LIDAR_A_SERIES_MINUM_MAJOR_ID      = 0,
@@ -51,6 +52,9 @@ enum {
 using namespace sl;
 
 ILidarDriver * drv = NULL;
+
+float angle_min = DEG2RAD(0.0f);
+float angle_max = DEG2RAD(30.0f);
 
 void publish_scan(ros::Publisher *pub,
                   sl_lidar_response_measurement_node_hq_t *nodes,
@@ -69,9 +73,11 @@ void publish_scan(ros::Publisher *pub,
 
 
     scan_count++;
-    
+    //Unnötig ?
     const float angle_min_rad = angle_offset + M_PI - (reversed ? angle_max : angle_min);
     const float angle_max_rad = angle_offset + M_PI - (reversed ? angle_min : angle_max);
+    //
+
     const float angle_increment = (angle_max_rad - angle_min_rad) / (node_count - 1);
 
 
@@ -79,8 +85,8 @@ void publish_scan(ros::Publisher *pub,
     sensor_msgs::LaserScan scan_msg;
     scan_msg.header.stamp = start;
     scan_msg.header.frame_id = frame_id;
-    scan_msg.angle_min = angle_min_rad;
-    scan_msg.angle_max = angle_max_rad;
+    scan_msg.angle_min = angle_min_rad;     //was bringt mir diese Berechnung und information ?
+    scan_msg.angle_max = angle_max_rad;     //
     scan_msg.angle_increment = angle_increment;
     scan_msg.time_increment = time_increment;
     scan_msg.scan_time = scan_time;
@@ -198,6 +204,16 @@ static float getAngle(const sl_lidar_response_measurement_node_hq_t& node)
     return node.angle_z_q14 * 90.f / 16384.f;
 }
 
+//Callback Funktion um den Max und Min Radius zu setzten 
+
+void radius_callback(const std_msgs::Float64MultiArray& msg) {
+    if (msg.data.size() == 2) {
+        max_radius = DEG2RAD(msg.data[0]);
+        min_radius = DEG2RAD(msg.data[1]);
+    }
+}
+
+
 int main(int argc, char * argv[]) {
     ros::init(argc, argv, "rplidar_node");
     
@@ -218,6 +234,12 @@ int main(int argc, char * argv[]) {
     double scan_frequency;
     ros::NodeHandle nh;
     ros::Publisher scan_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 1000);
+
+
+    //Sub um den zu messenden Winkel anzupassen 
+
+    ros::Subscriber radius_sub = nh.subscribe("/radius", 1, radius_callback);
+    
     ros::NodeHandle nh_private("~");
     nh_private.param<std::string>("channel_type", channel_type, "serial");
     nh_private.param<std::string>("tcp_ip", tcp_ip, "192.168.0.7"); 
@@ -350,10 +372,12 @@ int main(int argc, char * argv[]) {
         sl_lidar_response_measurement_node_hq_t nodes[8192];
         size_t   count = _countof(nodes);
 
+        
         start_scan_time = ros::Time::now();
         op_result = drv->grabScanDataHq(nodes, count);
         end_scan_time = ros::Time::now();
         scan_duration = (end_scan_time - start_scan_time).toSec();
+        
 
         if (op_result == SL_RESULT_OK) { 
             if(scan_frequency_tunning_after_scan){ //Set scan frequency(For Slamtec Tof lidar)
@@ -364,8 +388,7 @@ int main(int argc, char * argv[]) {
             }
             op_result = drv->ascendScanData(nodes, count);
             
-            float angle_min = DEG2RAD(0.0f);
-            float angle_max = DEG2RAD(30.0f);
+          
 
             if (op_result == SL_RESULT_OK) {
                 
@@ -408,8 +431,8 @@ int main(int argc, char * argv[]) {
                 
                 } else {
 
-                    const int ANGLE_MIN = 0;
-                    const int ANGLE_MAX = 30;
+                    int ANGLE_MIN = RAD2DEG(angle_min);
+                    int ANGLE_MAX = RAD2DEG(angle_max);
                     const int MAX_NODES = 8192;
                     
                     sl_lidar_response_measurement_node_hq_t filtered_nodes[MAX_NODES];
