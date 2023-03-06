@@ -2,14 +2,22 @@
 A set of a lidar sensor for a self-driving race car. 
 This is to detect objects that are in front of the car on the track. 
 
+
+
+
 # Aims of the project: 
 Limit the radius of the RPLidar to 30 degrees, 
 and optimise the performance of the code.
 
 
+
+
 # Code description:
 
+
+
 ## Ros-Client 
+
 
 ### scanCallback()
 
@@ -33,7 +41,10 @@ measurements and the angular range of the measurement in degrees is output to th
 measurements are iterated over in a loop and the angles and distances of each measurement are output in 
 degrees and metres on the console.
 
+
+
 ### int(main)
+
 ```
 int main(int argc, char **argv)
 {
@@ -47,6 +58,7 @@ int main(int argc, char **argv)
     return 0;
 }
 ```
+
 The function main initialises the ROS node named **rplidar_node_client** and creates a **NodeHandle n** to communicate 
 with the ROS system. Then a subscriber sub is created that listens on the message source */scan* and calls the **scanCallback** 
 function when a message is received. The number 1000 indicates the maximum number of messages held in the queue. Finally, 
@@ -55,6 +67,14 @@ the ROS node is sent into a continuous loop to wait for incoming messages until 
 
 
 ## Ros-Node 
+
+### publish_scan()
+
+The **publish_scan** function has parameters for configuring the laser scan message, including the minimum and maximum 
+angles for the scan data, the maximum distance and the timestamp for the measurements. The function then calculates the 
+angle range for the laser scan data and fills in the **ranges** and **intensities** fields in the LaserScan message based on
+the measurements received.
+
 
 ### getRPLIDARDeviceInfo
 
@@ -76,8 +96,11 @@ if((devinfo.model>>4) <= LIDAR_S_SERIES_MINUM_MAJOR_ID){
     sprintf(mode_str,"T%dM%d",(devinfo.model>>4)-LIDAR_T_SERIES_MINUM_MAJOR_ID,(devinfo.model&0xf));
 }
 ```
+
 These lines format the serial number of the RPLIDAR unit as a hexadecimal number and store it in the variable **sn_str**. 
 They also format the model name of the unit and store it in the variable "mode_str".
+
+
 
 ### checkRPLIDARHealth
 
