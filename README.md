@@ -76,6 +76,7 @@ sudo chmod 666 /dev/ttyUSB0
 To start the launcher, you must now call the following command:
 
 roslaunch rplidar_ros rplidar.launch
+
 Alternatively, you can display the data via the terminal window. The command for this is:
 
 rosrun rplidar_ros rplidarNodeClient
