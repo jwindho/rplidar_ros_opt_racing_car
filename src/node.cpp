@@ -36,6 +36,7 @@
 #include "sensor_msgs/LaserScan.h"
 #include "std_srvs/Empty.h"
 #include "sl_lidar.h" 
+#include <std_msgs/Float64MultiArray.h>
 
 #ifndef _countof
 #define _countof(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
@@ -208,8 +209,8 @@ static float getAngle(const sl_lidar_response_measurement_node_hq_t& node)
 
 void radius_callback(const std_msgs::Float64MultiArray& msg) {
     if (msg.data.size() == 2) {
-        max_radius = DEG2RAD(msg.data[0]);
-        min_radius = DEG2RAD(msg.data[1]);
+        angle_max = DEG2RAD(msg.data[0]);
+        angle_min = DEG2RAD(msg.data[1]);
     }
 }
 
@@ -397,7 +398,7 @@ int main(int argc, char * argv[]) {
                     int filtered_count = 0;
                     sl_lidar_response_measurement_node_hq_t filtered_nodes[8192];
                     for (int i = 0; i < count; i++) {
-                        if (getAngle(nodes[i]) >= 0 && getAngle(nodes[i]) <= 30) {
+                        if (getAngle(nodes[i]) >= RAD2DEG(angle_min) && getAngle(nodes[i]) <= RAD2DEG(angle_max)) {
                             filtered_nodes[filtered_count++] = nodes[i];
                         }
                     }
