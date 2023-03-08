@@ -404,7 +404,7 @@ int main(int argc, char * argv[]) {
                     }
 
                     // Winkelkorrektur auf gefilterte Scan-Daten anwenden
-                    const int angle_compensate_nodes_count = 30 * angle_compensate_multiple;
+                    const int angle_compensate_nodes_count = RAD2DEG(angle_max) * angle_compensate_multiple;
                     int angle_compensate_offset = 0;
                     std::vector<sl_lidar_response_measurement_node_hq_t> angle_compensate_nodes(angle_compensate_nodes_count);
 
