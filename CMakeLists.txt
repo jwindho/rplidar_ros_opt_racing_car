@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rosconsole
   sensor_msgs
+  std_msgs REQUIRED
 )
 
 include_directories(
@@ -30,6 +31,9 @@ target_link_libraries(rplidarNode ${catkin_LIBRARIES})
 
 add_executable(rplidarNodeClient src/client.cpp)
 target_link_libraries(rplidarNodeClient ${catkin_LIBRARIES})
+
+add_executable(radius_publisher src/radius_publisher_cmdline.cpp)
+target_link_libraries(radius_publisher ${catkin_LIBRARIES})
 
 install(TARGETS rplidarNode rplidarNodeClient
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
