@@ -32,11 +32,10 @@
  *
  */
 
-#include "ros/ros.h"
 #include "sensor_msgs/LaserScan.h"
 #include "std_srvs/Empty.h"
 #include "sl_lidar.h" 
-#include <std_msgs/Float64MultiArray.h>
+
 
 #ifndef _countof
 #define _countof(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
@@ -51,8 +50,6 @@ enum {
     LIDAR_T_SERIES_MINUM_MAJOR_ID       = 8,
 };
 using namespace sl;
-
-ILidarDriver * drv = NULL;
 
 float angle_min = DEG2RAD(0.0f);
 float angle_max = DEG2RAD(30.0f);
@@ -87,7 +84,7 @@ void publish_scan(ros::Publisher *pub,
     scan_msg.header.stamp = start;
     scan_msg.header.frame_id = frame_id;
     scan_msg.angle_min = angle_min_rad;     //was bringt mir diese Berechnung und information ?
-    scan_msg.angle_max = angle_max_rad;     //
+    scan_msg.angle_max = angle_max_rad;     
     scan_msg.angle_increment = angle_increment;
     scan_msg.time_increment = time_increment;
     scan_msg.scan_time = scan_time;
@@ -108,111 +105,24 @@ void publish_scan(ros::Publisher *pub,
         scan_msg.intensities[index] = nodes[i].quality >> 2;
     }
 
-    pub->publish(scan_msg);
+    
 }
 
-bool getRPLIDARDeviceInfo(ILidarDriver * drv)
+
+
+
+
+
+
+
+static float getAngle(float node_angle)
 {
-    sl_result     op_result;
-    sl_lidar_response_device_info_t devinfo;
-
-    op_result = drv->getDeviceInfo(devinfo);
-    if (SL_IS_FAIL(op_result)) {
-        if (op_result == SL_RESULT_OPERATION_TIMEOUT) {
-            ROS_ERROR("Error, operation time out. RESULT_OPERATION_TIMEOUT! ");
-        } else {
-            ROS_ERROR("Error, unexpected error, code: %x",op_result);
-        }
-        return false;
-    }
-
-    // print out the device serial number, firmware and hardware version number..
-    char sn_str[35] = {0}; 
-    for (int pos = 0; pos < 16 ;++pos) {
-        sprintf(sn_str + (pos * 2),"%02X", devinfo.serialnum[pos]);
-    }
-    char mode_str[16] = {0};
-    if((devinfo.model>>4) <= LIDAR_S_SERIES_MINUM_MAJOR_ID){
-        sprintf(mode_str,"A%dM%d",(devinfo.model>>4),(devinfo.model&0xf));
-
-    }else if((devinfo.model>>4) <= LIDAR_T_SERIES_MINUM_MAJOR_ID){
-        sprintf(mode_str,"S%dM%d",(devinfo.model>>4)-LIDAR_S_SERIES_MINUM_MAJOR_ID,(devinfo.model&0xf));
-    }else{
-        sprintf(mode_str,"T%dM%d",(devinfo.model>>4)-LIDAR_T_SERIES_MINUM_MAJOR_ID,(devinfo.model&0xf));
-
-    }
-    ROS_INFO("RPLIDAR MODE:%s",mode_str);
-    ROS_INFO("RPLIDAR S/N: %s",sn_str);
-    ROS_INFO("Firmware Ver: %d.%02d",devinfo.firmware_version>>8, devinfo.firmware_version & 0xFF);
-    ROS_INFO("Hardware Rev: %d",(int)devinfo.hardware_version);
-    return true;
-}
-
-bool checkRPLIDARHealth(ILidarDriver * drv)
-{
-    sl_result     op_result;
-    sl_lidar_response_device_health_t healthinfo;
-
-    op_result = drv->getHealth(healthinfo);
-    if (SL_IS_OK(op_result)) { 
-        //ROS_INFO("RPLidar health status : %d", healthinfo.status);
-        switch (healthinfo.status) {
-			case SL_LIDAR_STATUS_OK:
-                ROS_INFO("RPLidar health status : OK.");
-				return true;
-			case SL_LIDAR_STATUS_WARNING:
-                ROS_INFO("RPLidar health status : Warning.");
-				return true;
-			case SL_LIDAR_STATUS_ERROR:
-                ROS_ERROR("Error, rplidar internal error detected. Please reboot the device to retry.");
-				return false;
-        }
-    } else {
-        ROS_ERROR("Error, cannot retrieve rplidar health code: %x", op_result);
-        return false;
-    }
-}
-
-bool stop_motor(std_srvs::Empty::Request &req,
-                               std_srvs::Empty::Response &res)
-{
-  if(!drv)
-       return false;
-
-  ROS_DEBUG("Stop motor");
-  drv->setMotorSpeed(0);
-  return true;
-}
-
-bool start_motor(std_srvs::Empty::Request &req,
-                               std_srvs::Empty::Response &res)
-{
-  if(!drv)
-       return false;
-  if(drv->isConnected())
-  {
-      ROS_DEBUG("Start motor");
-      sl_result ans=drv->setMotorSpeed();
-  
-      ans=drv->startScan(0,1);
-   }
-   else ROS_INFO("lost connection");
-  return true;
-}
-
-static float getAngle(const sl_lidar_response_measurement_node_hq_t& node)
-{
-    return node.angle_z_q14 * 90.f / 16384.f;
+    return node_angle * 90.f / 16384.f;
 }
 
 //Callback Funktion um den Max und Min Radius zu setzten 
 
-void radius_callback(const std_msgs::Float64MultiArray& msg) {
-    if (msg.data.size() == 2) {
-        angle_max = DEG2RAD(msg.data[0]);
-        angle_min = DEG2RAD(msg.data[1]);
-    }
-}
+
 
 
 int main(int argc, char * argv[]) {
@@ -233,166 +143,33 @@ int main(int argc, char * argv[]) {
     std::string scan_mode;
     float max_distance;
     double scan_frequency;
-    ros::NodeHandle nh;
-    ros::Publisher scan_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 1000);
-
-
-    //Sub um den zu messenden Winkel anzupassen 
-
-    ros::Subscriber radius_sub = nh.subscribe("/radius", 1, radius_callback);
     
-    ros::NodeHandle nh_private("~");
-    nh_private.param<std::string>("channel_type", channel_type, "serial");
-    nh_private.param<std::string>("tcp_ip", tcp_ip, "192.168.0.7"); 
-    nh_private.param<int>("tcp_port", tcp_port, 20108);
-    nh_private.param<std::string>("udp_ip", udp_ip, "192.168.11.2"); 
-    nh_private.param<int>("udp_port", udp_port, 8089);
-    nh_private.param<std::string>("serial_port", serial_port, "/dev/ttyUSB0"); 
-    nh_private.param<int>("serial_baudrate", serial_baudrate, 115200/*256000*/);//ros run for A1 A2, change to 256000 if A3
-    nh_private.param<std::string>("frame_id", frame_id, "laser_frame");
-    nh_private.param<bool>("inverted", inverted, false);
-    nh_private.param<bool>("angle_compensate", angle_compensate, false);
-    nh_private.param<std::string>("scan_mode", scan_mode, std::string());
-    if(channel_type == "udp"){
-        nh_private.param<double>("scan_frequency", scan_frequency, 20.0);
-    }
-    else{
-        nh_private.param<double>("scan_frequency", scan_frequency, 10.0);
-    }
 
     int ver_major = SL_LIDAR_SDK_VERSION_MAJOR;
     int ver_minor = SL_LIDAR_SDK_VERSION_MINOR;
     int ver_patch = SL_LIDAR_SDK_VERSION_PATCH;    
-    ROS_INFO("RPLIDAR running on ROS package rplidar_ros, SDK Version:%d.%d.%d",ver_major,ver_minor,ver_patch);
+    
 
     sl_result  op_result;
 
-    // create the driver instance
-    drv = *createLidarDriver();
-    IChannel* _channel;
-    if(channel_type == "tcp"){
-        _channel = *createTcpChannel(tcp_ip, tcp_port);
-    }
-    else if(channel_type == "udp"){
-        _channel = *createUdpChannel(udp_ip, udp_port);
-    }
-    else{
-        _channel = *createSerialPortChannel(serial_port, serial_baudrate);
-    }
-    if (SL_IS_FAIL((drv)->connect(_channel))) {
-		if(channel_type == "tcp"){
-            ROS_ERROR("Error, cannot connect to the ip addr  %s with the tcp port %s.",tcp_ip.c_str(),std::to_string(tcp_port).c_str());
-        }
-        else if(channel_type == "udp"){
-            ROS_ERROR("Error, cannot connect to the ip addr  %s with the udp port %s.",udp_ip.c_str(),std::to_string(udp_port).c_str());
-        }
-        else{
-            ROS_ERROR("Error, cannot bind to the specified serial port %s.",serial_port.c_str());            
-        }
-        delete drv;
-        return -1;
-    }
-    // get rplidar device info
-    if(!getRPLIDARDeviceInfo(drv)){
-       delete drv;
-       return -1;
-    }
-    if (!checkRPLIDARHealth(drv)) {
-        delete drv;
-        return -1;
-    }
     
     
-    sl_lidar_response_device_info_t devinfo;
-    op_result = drv->getDeviceInfo(devinfo);
-    bool scan_frequency_tunning_after_scan = false;
-
-    if( (devinfo.model>>4) > LIDAR_S_SERIES_MINUM_MAJOR_ID){
-        scan_frequency_tunning_after_scan = true;
-    }
-    //two service for start/stop lidar rotate
-    ros::ServiceServer stop_motor_service = nh.advertiseService("stop_motor", stop_motor);
-    ros::ServiceServer start_motor_service = nh.advertiseService("start_motor", start_motor);
-
-    if(!scan_frequency_tunning_after_scan){ //for RPLIDAR A serials
-       //start RPLIDAR A serials  rotate by pwm
-        drv->setMotorSpeed(600);     
-    }
 
 
-    LidarScanMode current_scan_mode;
-    if (scan_mode.empty()) {
-        op_result = drv->startScan(false /* not force scan */, true /* use typical scan mode */, 0, &current_scan_mode);
-    } else {
-        std::vector<LidarScanMode> allSupportedScanModes;
-        op_result = drv->getAllSupportedScanModes(allSupportedScanModes);
-
-        if (SL_IS_OK(op_result)) {
-            sl_u16 selectedScanMode = sl_u16(-1);
-            for (std::vector<LidarScanMode>::iterator iter = allSupportedScanModes.begin(); iter != allSupportedScanModes.end(); iter++) {
-                if (iter->scan_mode == scan_mode) {
-                    selectedScanMode = iter->id;
-                    break;
-                }
-            }
-
-            if (selectedScanMode == sl_u16(-1)) {
-                ROS_ERROR("scan mode `%s' is not supported by lidar, supported modes:", scan_mode.c_str());
-                for (std::vector<LidarScanMode>::iterator iter = allSupportedScanModes.begin(); iter != allSupportedScanModes.end(); iter++) {
-                    ROS_ERROR("\t%s: max_distance: %.1f m, Point number: %.1fK",  iter->scan_mode,
-                            iter->max_distance, (1000/iter->us_per_sample));
-                }
-                op_result = SL_RESULT_OPERATION_FAIL;
-            } else {
-                op_result = drv->startScanExpress(false /* not force scan */, selectedScanMode, 0, &current_scan_mode);
-            }
-        }
-    }
-
-    if(SL_IS_OK(op_result))
-    {
-        //default frequent is 10 hz (by motor pwm value),  current_scan_mode.us_per_sample is the number of scan point per us        
-        points_per_circle = (int)(1000*1000/current_scan_mode.us_per_sample/scan_frequency);
-        angle_compensate_multiple = points_per_circle/360.0  + 1;
-        if(angle_compensate_multiple < 1) 
-          angle_compensate_multiple = 1.0;
-        max_distance = (float)current_scan_mode.max_distance;
-        ROS_INFO("current scan mode: %s, sample rate: %d Khz, max_distance: %.1f m, scan frequency:%.1f Hz, ", current_scan_mode.scan_mode,(int)(1000/current_scan_mode.us_per_sample+0.5),max_distance, scan_frequency); 
-    }
-    else
-    {
-        ROS_ERROR("Can not start scan: %08x!", op_result);
-    }
-
-    ros::Time start_scan_time;
-    ros::Time end_scan_time;
     double scan_duration;
-
+    int loop = 0;
     
-    while (ros::ok()) {
-        sl_lidar_response_measurement_node_hq_t nodes[8192];
+    while (loop < 100) {
+        float nodes_distance[];
+        float node_angle[];
         size_t   count = _countof(nodes);
 
         
-        start_scan_time = ros::Time::now();
-        op_result = drv->grabScanDataHq(nodes, count);
-        end_scan_time = ros::Time::now();
+        start_scan_time = 0;
+        end_scan_time = 100;
         scan_duration = (end_scan_time - start_scan_time).toSec();
-        
 
-        if (op_result == SL_RESULT_OK) { 
-            if(scan_frequency_tunning_after_scan){ //Set scan frequency(For Slamtec Tof lidar)
-                ROS_INFO("set lidar scan frequency to %.1f Hz(%.1f Rpm) ",scan_frequency,scan_frequency*60);
-                drv->setMotorSpeed(scan_frequency*60); //rpm 
-                scan_frequency_tunning_after_scan = false;
-                continue;
-            }
-            op_result = drv->ascendScanData(nodes, count);
-            
-          
 
-            if (op_result == SL_RESULT_OK) {
-                
                 if (angle_compensate) {
                      // Filtere die Scan-Daten nach Winkel
                     int filtered_count = 0;
@@ -470,16 +247,14 @@ int main(int argc, char * argv[]) {
                                 angle_min, angle_max, max_distance,
                                 frame_id);
                     }
-            
+                
             } 
-        }
+        
 
-        ros::spinOnce();
-    }
+        
+    
 
-    // done!
-    drv->setMotorSpeed(0);
-    drv->stop();
-    delete drv;
+    
+    
     return 0;
 }
