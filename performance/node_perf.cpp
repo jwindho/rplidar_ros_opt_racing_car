@@ -35,6 +35,7 @@
 #include "sensor_msgs/LaserScan.h"
 #include "std_srvs/Empty.h"
 #include "sl_lidar.h" 
+#include "node_info.h"
 
 
 #ifndef _countof
@@ -54,13 +55,13 @@ using namespace sl;
 float angle_min = DEG2RAD(0.0f);
 float angle_max = DEG2RAD(30.0f);
 
-void publish_scan(ros::Publisher *pub,
-                  sl_lidar_response_measurement_node_hq_t *nodes,
+void publish_scan(
+                  NodeInfo nodes,
                   size_t node_count, ros::Time start,
                   double scan_time, bool inverted,
                   float angle_min, float angle_max,
                   float max_distance,
-                  std::string frame_id)
+                  )
 {
     
     static int scan_count = 0;
@@ -80,6 +81,8 @@ void publish_scan(ros::Publisher *pub,
 
 
     const float time_increment = scan_time / (node_count - 1);
+
+    /*
     sensor_msgs::LaserScan scan_msg;
     scan_msg.header.stamp = start;
     scan_msg.header.frame_id = frame_id;
@@ -92,7 +95,7 @@ void publish_scan(ros::Publisher *pub,
     scan_msg.range_max = max_distance;
     scan_msg.intensities.resize(node_count);
     scan_msg.ranges.resize(node_count);
-
+    */
     
     
 
@@ -115,9 +118,9 @@ void publish_scan(ros::Publisher *pub,
 
 
 
-static float getAngle(float node_angle)
+static float getAngle(double node)
 {
-    return node_angle * 90.f / 16384.f;
+    return node * 90.f / 16384.f;
 }
 
 //Callback Funktion um den Max und Min Radius zu setzten 
@@ -127,6 +130,16 @@ static float getAngle(float node_angle)
 
 int main(int argc, char * argv[]) {
     
+
+    NodeInfo node_info(8192); // Größe der Arrays ist 8192
+    
+    double distances[8192] = {5.0, 10.0};
+    node_info.setDistance(distances);
+    
+    double angles[8192] = {30.0, 45.0};
+    node_info.setAngle(angles);
+
+
     std::string channel_type;
     std::string tcp_ip;
     int tcp_port = 20108;
@@ -149,12 +162,6 @@ int main(int argc, char * argv[]) {
     int ver_patch = SL_LIDAR_SDK_VERSION_PATCH;    
     
 
-    sl_result  op_result;
-
-    
-    
-
-
     double scan_duration;
     int loop = 0;
     
@@ -172,9 +179,14 @@ int main(int argc, char * argv[]) {
                 if (angle_compensate) {
                      // Filtere die Scan-Daten nach Winkel
                     int filtered_count = 0;
-                    sl_lidar_response_measurement_node_hq_t filtered_nodes[8192];
+                    NodeInfo filtered_nodes[8192];
                     for (int i = 0; i < count; i++) {
-                        if (getAngle(nodes[i]) >= RAD2DEG(angle_min) && getAngle(nodes[i]) <= RAD2DEG(angle_max)) {
+                        if (getAngle(nodes.getAngle(i)) >= RAD2DEG(angle_min) && getAngle(nodes.getAngle(i)) <= RAD2DEG(angle_max)) {
+                            
+                            
+                            
+                            
+                            
                             filtered_nodes[filtered_count++] = nodes[i];
                         }
                     }
@@ -182,10 +194,10 @@ int main(int argc, char * argv[]) {
                     // Winkelkorrektur auf gefilterte Scan-Daten anwenden
                     const int angle_compensate_nodes_count = RAD2DEG(angle_max) * angle_compensate_multiple;
                     int angle_compensate_offset = 0;
-                    std::vector<sl_lidar_response_measurement_node_hq_t> angle_compensate_nodes(angle_compensate_nodes_count);
+                    NodeInfo angle_compensate_nodes(angle_compensate_nodes_count);
 
                     for (int i = 0; i < filtered_count; i++) {
-                        float angle = getAngle(filtered_nodes[i]);
+                        float angle = getAngle(filtered_nodes.getAngle(i));
                         int angle_value = static_cast<int>(angle * angle_compensate_multiple);
                         if ((angle_value - angle_compensate_offset) < 0) angle_compensate_offset = angle_value;
 
@@ -194,24 +206,30 @@ int main(int argc, char * argv[]) {
                         if (end > angle_compensate_nodes_count) end = angle_compensate_nodes_count;
 
                         for (int j = start; j < end; j++) {
+                            
+                            
+                            
                             angle_compensate_nodes[j] = filtered_nodes[i];
                         }
                     }
 
                     int compensate_count = 0;
-                    sl_lidar_response_measurement_node_hq_t compensate_nodes[8192];
+                    NodeInfo compensate_nodes[8192];
                     for (int i = 0; i < angle_compensate_nodes_count; i++) {
-                        if (angle_compensate_nodes[i].dist_mm_q2 / 4.0f / 1000 > 0 && angle_compensate_nodes[i].dist_mm_q2 / 4.0f / 1000 < 8) {
-                            compensate_nodes[compensate_count++] = angle_compensate_nodes[i];
+                        if (angle_compensate_nodes.getDistance(i) / 4.0f / 1000 > 0 && angle_compensate_nodes.getDistance(i) / 4.0f / 1000 < 8) {
+                            
+                            
+                            
+                            
+                            compensate_nodes[compensate_count++] = angle_compensate_nodes[i]; //
                         }
                     }
 
                     // veröffentliche nur die korrigierten Scan-Daten
                    
-                    publish_scan(&scan_pub, compensate_nodes, compensate_count,
+                    publish_scan(compensate_nodes, compensate_count,
                                 start_scan_time, scan_duration, inverted,
-                                angle_min, angle_max, max_distance,
-                                frame_id);
+                                angle_min, angle_max, max_distance);
                 
                 } else {
 
@@ -225,12 +243,12 @@ int main(int argc, char * argv[]) {
                     int i = 0;
 
                     // find the first valid node and last valid node
-                   for(; i < count && (getAngle(nodes[i]) < ANGLE_MIN || getAngle(nodes[i]) > ANGLE_MAX); ++i) {}
+                   for(; i < count && (getAngle(nodes.getAngle(i)) < ANGLE_MIN || getAngle(nodes.getAngle(i)) > ANGLE_MAX); ++i) {}
 
                     start_node = i;
 
                     // find the last valid node
-                    for(; i < count && getAngle(nodes[i]) <= ANGLE_MAX; ++i) {}
+                    for(; i < count && getAngle(nodes.getAngle(i)) <= ANGLE_MAX; ++i) {}
 
                     end_node = i - 1;
 
@@ -238,15 +256,18 @@ int main(int argc, char * argv[]) {
                     for(int i = start_node; i <= end_node; ++i) {
                         const float distance = nodes[i].dist_mm_q2 / 4.0f / 1000;
                         if(distance > 0 && distance < 8) {
+
+
                             filtered_nodes[filtered_count++] = nodes[i];
+                       
+                       
                         }
                     }
-                    publish_scan(&scan_pub, filtered_nodes, filtered_count,
+                    publish_scan(filtered_nodes, filtered_count,
                                 start_scan_time, scan_duration, inverted,
-                                angle_min, angle_max, max_distance,
-                                frame_id);
+                                angle_min, angle_max, max_distance);
                     }
-                
+            loop ++  
             } 
         
 
