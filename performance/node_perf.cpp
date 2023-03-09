@@ -126,7 +126,6 @@ static float getAngle(float node_angle)
 
 
 int main(int argc, char * argv[]) {
-    ros::init(argc, argv, "rplidar_node");
     
     std::string channel_type;
     std::string tcp_ip;
