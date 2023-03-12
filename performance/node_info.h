@@ -11,8 +11,10 @@ class NodeInfo {
     NodeInfo(int size = 1);
     void setDistance(double distances[]);
     void setAngle(double angles[]);
-    double* getDistance();
-    double* getAngle();
+    void setDistance(int index, double distances);
+    void setAngle(int index,double angles);
+    double getDistance(int index);
+    double getAngle(int index);
 };
 
 #endif
