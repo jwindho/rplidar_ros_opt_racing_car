@@ -4,6 +4,7 @@
 #include "node_info.h"
 #include <iostream>
 #include <string>
+#include <chrono>
 
 using namespace std;
 
@@ -14,7 +15,25 @@ using namespace std;
 #endif
 
 
+#include <chrono>
 
+class Timer {
+public:
+    Timer() : m_startTime(std::chrono::high_resolution_clock::now()) {}
+
+    ~Timer() {
+        auto endTime = std::chrono::high_resolution_clock::now();
+        auto start = std::chrono::time_point_cast<std::chrono::microseconds>(m_startTime).time_since_epoch().count();
+        auto end = std::chrono::time_point_cast<std::chrono::microseconds>(endTime).time_since_epoch().count();
+        auto duration = end - start;
+        double ms = duration * 0.001;
+
+        std::cout << "Elapsed time: " << ms << " ms\n";
+    }
+
+private:
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_startTime;
+};
 
 
 
@@ -95,6 +114,11 @@ static float getAngle(double node)
 /**/
 int main() {
     
+
+    {
+
+        Timer timer;
+
     const int size_data = 4;
 
     NodeInfo nodes(size_data); // Größe der Arrays ist 8192
@@ -157,6 +181,7 @@ int main() {
                         }
                     }
 
+
                     // Winkelkorrektur auf gefilterte Scan-Daten anwenden
                     const int angle_compensate_nodes_count = RAD2DEG*angle_max * angle_compensate_multiple;
                     int angle_compensate_offset = 0;
@@ -169,6 +194,7 @@ int main() {
 
                         int start = angle_value - angle_compensate_offset;
                         int end = start + angle_compensate_multiple;
+
                         if (end > angle_compensate_nodes_count) end = angle_compensate_nodes_count;
 
                         for (int j = start; j < end ; j++) { 
@@ -183,6 +209,7 @@ int main() {
 
                     int compensate_count = 0;
                     NodeInfo compensate_nodes(size_data);
+
                     for (int i = 0; i < angle_compensate_nodes_count; i++) {
                         if (angle_compensate_nodes.getDistance(i) / 4.0f / 1000 > 0 && angle_compensate_nodes.getDistance(i) / 4.0f / 1000 < 8) {
                             
@@ -251,6 +278,6 @@ int main() {
     
 
     
-    
+    }
     return 0;
 }
