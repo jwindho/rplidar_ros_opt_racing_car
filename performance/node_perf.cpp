@@ -117,7 +117,7 @@ int main() {
 
     {
 
-        Timer timer;
+    Timer timer;
 
     const int size_data = 4;
 
