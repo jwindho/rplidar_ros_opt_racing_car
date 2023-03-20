@@ -370,41 +370,48 @@ int main(int argc, char * argv[]) {
             if (op_result == SL_RESULT_OK) {
                 
                 if (angle_compensate) {
-                     const int angle_compensate_nodes_count = 360 * angle_compensate_multiple;
-                     int angle_compensate_offset = 0;
-                    std::vector<sl_lidar_response_measurement_node_hq_t> angle_compensate_nodes(angle_compensate_nodes_count);
-
+                     // Filtere die Scan-Daten nach Winkel
+                    int filtered_count = 0;
+                    sl_lidar_response_measurement_node_hq_t filtered_nodes[8192];
                     for (int i = 0; i < count; i++) {
-                        if (nodes[i].dist_mm_q2 != 0) {
-                        float angle = getAngle(nodes[i]);
-                        int angle_value = static_cast<int>(angle * angle_compensate_multiple);
-                            if ((angle_value - angle_compensate_offset) < 0) angle_compensate_offset = angle_value;
-
-                            int start = angle_value - angle_compensate_offset;
-                            int end = start + angle_compensate_multiple;
-                        if (end > angle_compensate_nodes_count) end = angle_compensate_nodes_count;
-
-                            for (int j = start; j < end; j++) {
-                                angle_compensate_nodes[j] = nodes[i];
-                             }
+                        if (getAngle(nodes[i]) >= RAD2DEG(angle_min) && getAngle(nodes[i]) <= RAD2DEG(angle_max)) {
+                            filtered_nodes[filtered_count++] = nodes[i];
                         }
                     }
-  
+
+                    // Winkelkorrektur auf gefilterte Scan-Daten anwenden
+                    const int angle_compensate_nodes_count = RAD2DEG(angle_max) * angle_compensate_multiple;
+                    int angle_compensate_offset = 0;
+                    std::vector<sl_lidar_response_measurement_node_hq_t> angle_compensate_nodes(angle_compensate_nodes_count);
+
+                    for (int i = 0; i < filtered_count; i++) {
+                        float angle = getAngle(filtered_nodes[i]);
+                        int angle_value = static_cast<int>(angle * angle_compensate_multiple);
+                        if ((angle_value - angle_compensate_offset) < 0) angle_compensate_offset = angle_value;
+
+                        int start = angle_value - angle_compensate_offset;
+                        int end = start + angle_compensate_multiple;
+                        if (end > angle_compensate_nodes_count) end = angle_compensate_nodes_count;
+
+                        for (int j = start; j < end; j++) {
+                            angle_compensate_nodes[j] = filtered_nodes[i];
+                        }
+                    }
+
                     int compensate_count = 0;
+                    sl_lidar_response_measurement_node_hq_t compensate_nodes[8192];
+                    for (int i = 0; i < angle_compensate_nodes_count; i++) {
+                        if (angle_compensate_nodes[i].dist_mm_q2 / 4.0f / 1000 > 0 && angle_compensate_nodes[i].dist_mm_q2 / 4.0f / 1000 < 8) {
+                            compensate_nodes[compensate_count++] = angle_compensate_nodes[i];
+                        }
+                    }
 
-		            sl_lidar_response_measurement_node_hq_t compensate_nodes[8192];
-		            for(int i = 0; i <= angle_compensate_nodes_count; i++)
- 		            {
-                        if(angle_compensate_nodes[i].dist_mm_q2/4.0f/1000 > 0 && angle_compensate_nodes[i].dist_mm_q2/4.0f/1000 < 8) {
-			                compensate_nodes[compensate_count++] = angle_compensate_nodes[i];
-			            }
-			        }
-
-
+                    // veröffentliche nur die korrigierten Scan-Daten
+                   
                     publish_scan(&scan_pub, compensate_nodes, compensate_count,
-                             start_scan_time, scan_duration, inverted,
-                             angle_min, angle_max, max_distance,
-                             frame_id);
+                                start_scan_time, scan_duration, inverted,
+                                angle_min, angle_max, max_distance,
+                                frame_id);
                 
                 } else {
 
