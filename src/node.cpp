@@ -413,19 +413,19 @@ int main(int argc, char * argv[]) {
                     const int MAX_NODES = 8192;
                     
                     sl_lidar_response_measurement_node_hq_t filtered_nodes[MAX_NODES];
-                    int filtered_Count = 0;
+                    int filtered_count = 0;
                     int start_node = 0, end_node = 0;
                     int i = 0;
 
                     // find the first valid node and last valid node
                    for(; i < count && (getAngle(nodes[i]) < ANGLE_MIN || getAngle(nodes[i]) > ANGLE_MAX); ++i) {}
 
-                    int start_node = i;
+                    start_node = i;
 
                     // find the last valid node
                     for(; i < count && getAngle(nodes[i]) <= ANGLE_MAX; ++i) {}
 
-                    int end_node = i - 1;
+                    end_node = i - 1;
 
                     // filter nodes
                     for(int i = start_node; i <= end_node; ++i) {
@@ -434,7 +434,7 @@ int main(int argc, char * argv[]) {
                             filtered_nodes[filtered_count++] = nodes[i];
                         }
                     }
-                    publish_scan(&scan_pub, filtered_nodes, filtered_Count,
+                    publish_scan(&scan_pub, filtered_nodes, filtered_count,
                                 start_scan_time, scan_duration, inverted,
                                 angle_min, angle_max, max_distance,
                                 frame_id);
