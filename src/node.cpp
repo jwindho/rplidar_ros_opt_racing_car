@@ -366,6 +366,8 @@ int main(int argc, char * argv[]) {
             
             float angle_min = DEG2RAD(0.0f);
             float angle_max = DEG2RAD(30.0f);
+            const int ANGLE_MIN = 0;
+            const int ANGLE_MAX = 30;
 
             if (op_result == SL_RESULT_OK) {
                 
@@ -374,13 +376,13 @@ int main(int argc, char * argv[]) {
                     int filtered_count = 0;
                     sl_lidar_response_measurement_node_hq_t filtered_nodes[8192];
                     for (int i = 0; i < count; i++) {
-                        if (getAngle(nodes[i]) >= RAD2DEG(angle_min) && getAngle(nodes[i]) <= RAD2DEG(angle_max)) {
+                        if (getAngle(nodes[i]) >= ANGLE_MIN && getAngle(nodes[i]) <= ANGLE_MAX) {
                             filtered_nodes[filtered_count++] = nodes[i];
                         }
                     }
 
                     // Winkelkorrektur auf gefilterte Scan-Daten anwenden
-                    const int angle_compensate_nodes_count = RAD2DEG(angle_max) * angle_compensate_multiple;
+                    const int angle_compensate_nodes_count = ANGLE_MAX * angle_compensate_multiple;
                     int angle_compensate_offset = 0;
                     std::vector<sl_lidar_response_measurement_node_hq_t> angle_compensate_nodes(angle_compensate_nodes_count);
 
@@ -415,8 +417,7 @@ int main(int argc, char * argv[]) {
                 
                 } else {
 
-                    const int ANGLE_MIN = 0;
-                    const int ANGLE_MAX = 30;
+                    
                     const int MAX_NODES = 8192;
                     
                     sl_lidar_response_measurement_node_hq_t filtered_nodes[MAX_NODES];
