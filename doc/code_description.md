@@ -27,7 +27,6 @@ measurements are iterated over in a loop and the angles and distances of each me
 degrees and meters on the console.
 
 
-
 ### int main
 
 ```
@@ -228,8 +227,23 @@ static float getAngle(const sl_lidar_response_measurement_node_hq_t& node)
 ```
 This code defines a static function called **getAngle** that takes in a constant reference to our struct and calculates the **angle** in degrees represented by the given node in the lidar measurement data.
 
+
+### radius_callback
+
+```
+void radius_callback(const std_msgs::Float64MultiArray& msg) {
+    if (msg.data.size() == 2) {
+        angle_max = DEG2RAD(msg.data[0]);
+        angle_min = DEG2RAD(msg.data[1]);
+    }
+}
+```
+
+This code takes in a message of type *Float64MultiArray*. Within the function it sets two variables called "angle_max" and "angle_min" to the values contained in the first and second elements of the "data" array respectively, after converting them from degrees to radians using the "DEG2RAD" function.
+
 ### int main
 
+The code initializes the ROS node **rplidar_node** and sets up parameters for connecting to a RPLIDAR sensor via different channels *(serial, TCP, UDP)*. It also sets some sensor-specific parameters, such as whether the sensor data needs **angle compensation** and the **maximum scan distance**. The code subscribes to a ROS topic */radius* to adjust the angle to be measured. It creates a publisher for publishing the sensor data as a **sensor_msgs/LaserScan** message to the **scan** topic. It creates a driver instance for the RPLIDAR and connects to the sensor via the specified channel type and parameters. If the connection fails, an error message is printed, and the program terminates with a return code of -1.
 
 ### while(ros::ok) 
 
