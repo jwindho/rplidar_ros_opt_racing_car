@@ -245,6 +245,83 @@ This code takes in a message of type *Float64MultiArray*. Within the function it
 
 The code initializes the ROS node **rplidar_node** and sets up parameters for connecting to a RPLIDAR sensor via different channels *(serial, TCP, UDP)*. It also sets some sensor-specific parameters, such as whether the sensor data needs **angle compensation** and the **maximum scan distance**. The code subscribes to a ROS topic */radius* to adjust the angle to be measured. It creates a publisher for publishing the sensor data as a **sensor_msgs/LaserScan** message to the **scan** topic. It creates a driver instance for the RPLIDAR and connects to the sensor via the specified channel type and parameters. If the connection fails, an error message is printed, and the program terminates with a return code of -1.
 
+.
+
+.
+
+.
+```
+    sl_lidar_response_device_info_t devinfo;
+    op_result = drv->getDeviceInfo(devinfo);
+    bool scan_frequency_tunning_after_scan = false;
+
+    if( (devinfo.model>>4) > LIDAR_S_SERIES_MINUM_MAJOR_ID){
+        scan_frequency_tunning_after_scan = true;
+    }
+    //two service for start/stop lidar rotate
+    ros::ServiceServer stop_motor_service = nh.advertiseService("stop_motor", stop_motor);
+    ros::ServiceServer start_motor_service = nh.advertiseService("start_motor", start_motor);
+
+    if(!scan_frequency_tunning_after_scan){ //for RPLIDAR A serials
+       //start RPLIDAR A serials  rotate by pwm
+        drv->setMotorSpeed(600);     
+    }
+```
+First a structure **devinfo** is initialized to store device information. Then, it determines if the LIDAR model is a newer series model that supports scan frequency tuning after scanning. If the model is not, it starts the LIDAR rotation by setting the motor speed to **600 PWM**.
+
+```
+    LidarScanMode current_scan_mode;
+    if (scan_mode.empty()) {
+        op_result = drv->startScan(false /* not force scan */, true /* use typical scan mode */, 0, &current_scan_mode);
+    } else {
+        std::vector<LidarScanMode> allSupportedScanModes;
+        op_result = drv->getAllSupportedScanModes(allSupportedScanModes);
+
+        if (SL_IS_OK(op_result)) {
+            sl_u16 selectedScanMode = sl_u16(-1);
+            for (std::vector<LidarScanMode>::iterator iter = allSupportedScanModes.begin(); iter != allSupportedScanModes.end(); iter++) {
+                if (iter->scan_mode == scan_mode) {
+                    selectedScanMode = iter->id;
+                    break;
+                }
+            }
+
+            if (selectedScanMode == sl_u16(-1)) {
+                ROS_ERROR("scan mode `%s' is not supported by lidar, supported modes:", scan_mode.c_str());
+                for (std::vector<LidarScanMode>::iterator iter = allSupportedScanModes.begin(); iter != allSupportedScanModes.end(); iter++) {
+                    ROS_ERROR("\t%s: max_distance: %.1f m, Point number: %.1fK",  iter->scan_mode,
+                            iter->max_distance, (1000/iter->us_per_sample));
+                }
+                op_result = SL_RESULT_OPERATION_FAIL;
+            } else {
+                op_result = drv->startScanExpress(false /* not force scan */, selectedScanMode, 0, &current_scan_mode);
+            }
+        }
+    }
+
+    if(SL_IS_OK(op_result))
+    {
+        //default frequent is 10 hz (by motor pwm value),  current_scan_mode.us_per_sample is the number of scan point per us        
+        points_per_circle = (int)(1000*1000/current_scan_mode.us_per_sample/scan_frequency);
+        angle_compensate_multiple = points_per_circle/360.0  + 1;
+        if(angle_compensate_multiple < 1) 
+          angle_compensate_multiple = 1.0;
+        max_distance = (float)current_scan_mode.max_distance;
+        ROS_INFO("current scan mode: %s, sample rate: %d Khz, max_distance: %.1f m, scan frequency:%.1f Hz, ", current_scan_mode.scan_mode,(int)(1000/current_scan_mode.us_per_sample+0.5),max_distance, scan_frequency); 
+    }
+    else
+    {
+        ROS_ERROR("Can not start scan: %08x!", op_result);
+    }
+```
+The code checks if a specific scan mode is requested by the user. 
+
+First, the LiDAR sensor is started in the typical scan mode using the **startScan** method with the parameters *false* and *true* to indicate that the scan should not be forced and that the typical scan mode should be used. The **op_result** variable is used to store the result of this operation.
+
+If a specific scan mode is requested by the user, the code first retrieves all the supported scan modes using the **getAllSupportedScanModes** method, and stores them in the **allSupportedScanModes** vector. The code then iterates through the **allSupportedScanModes** vector to find the requested scan mode, and sets the **selectedScanMode** variable to the ID of the found scan mode. If the requested scan mode is not found, it prints an error message.
+If the LiDAR sensor is successfully started it calculates and sets necessary variables.
+
+
 ### while(ros::ok) 
 
 ```
@@ -257,4 +334,108 @@ scan_duration = (end_scan_time - start_scan_time).toSec();
 The **start_scan_time** and **end_scan_time** are stored here in order to calculate the duration of the scan data later. 
 The command **drv->grabScanDataHq(nodes, count)** ensures that the scan data is received from the laser scanner and 
 stored in the array nodes. The return value **op_result** indicates whether the scan process was successful or not. 
-Finally, the duration of the scan data is calculated in seconds and stored in the variable **scan_duration**.
+Finally, the duration of the scan data is calculated in seconds and stored in the variable **scan_duration**. 
+
+
+```
+        if (op_result == SL_RESULT_OK) { 
+            if(scan_frequency_tunning_after_scan){ //Set scan frequency(For Slamtec Tof lidar)
+                ROS_INFO("set lidar scan frequency to %.1f Hz(%.1f Rpm) ",scan_frequency,scan_frequency*60);
+                drv->setMotorSpeed(scan_frequency*60); //rpm 
+                scan_frequency_tunning_after_scan = false;
+                continue;
+            }
+            op_result = drv->ascendScanData(nodes, count);
+```
+If the **op_result** is equal to **SL_RESULT_OK**, which indicates a successful scan, the code proceeds to perform further operations. If the **scan_frequency_tunning_after_scan** variable is set to true, the lidar motor speed is set to a desired value indicated by **scan_frequency**, after which the loop is continued.
+
+
+```
+if (op_result == SL_RESULT_OK) {
+                
+                if (angle_compensate) {
+                     // Filtere die Scan-Daten nach Winkel
+                    int filtered_count = 0;
+                    sl_lidar_response_measurement_node_hq_t filtered_nodes[8192];
+                    for (int i = 0; i < count; i++) {
+                        if (getAngle(nodes[i]) >= RAD2DEG(angle_min) && getAngle(nodes[i]) <= RAD2DEG(angle_max)) {
+                            filtered_nodes[filtered_count++] = nodes[i];
+                        }
+                    }
+
+                    // Winkelkorrektur auf gefilterte Scan-Daten anwenden
+                    const int angle_compensate_nodes_count = RAD2DEG(angle_max) * angle_compensate_multiple;
+                    int angle_compensate_offset = 0;
+                    std::vector<sl_lidar_response_measurement_node_hq_t> angle_compensate_nodes(angle_compensate_nodes_count);
+
+                    for (int i = 0; i < filtered_count; i++) {
+                        float angle = getAngle(filtered_nodes[i]);
+                        int angle_value = static_cast<int>(angle * angle_compensate_multiple);
+                        if ((angle_value - angle_compensate_offset) < 0) angle_compensate_offset = angle_value;
+
+                        int start = angle_value - angle_compensate_offset;
+                        int end = start + angle_compensate_multiple;
+                        if (end > angle_compensate_nodes_count) end = angle_compensate_nodes_count;
+
+                        for (int j = start; j < end; j++) {
+                            angle_compensate_nodes[j] = filtered_nodes[i];
+                        }
+                    }
+
+                    int compensate_count = 0;
+                    sl_lidar_response_measurement_node_hq_t compensate_nodes[8192];
+                    for (int i = 0; i < angle_compensate_nodes_count; i++) {
+                        if (angle_compensate_nodes[i].dist_mm_q2 / 4.0f / 1000 > 0 && angle_compensate_nodes[i].dist_mm_q2 / 4.0f / 1000 < 8) {
+                            compensate_nodes[compensate_count++] = angle_compensate_nodes[i];
+                        }
+                    }
+
+                    // veröffentliche nur die korrigierten Scan-Daten
+                   
+                    publish_scan(&scan_pub, compensate_nodes, compensate_count,
+                                start_scan_time, scan_duration, inverted,
+                                angle_min, angle_max, max_distance,
+                                frame_id);
+                
+                }
+```
+The following command initializes a variable **filtered_count** that is incremented after each filtered value. 
+In the If command then all data are considered, which are in the value range.
+
+This code section performs **angle compensation on filtered lidar scan data**. It first calculates the number of nodes required for angle compensation based on the maximum angle and compensation factor. Then, it creates a vector to store the nodes and initializes it with the required number of nodes. The for loop iterates over the filtered nodes, calculates the **angle value** and **offset**, and fills the vector with the corresponding node values. Afterward, another for loop iterates over the angle-compensated nodes, filters them based on distance, and fills the **compensate_nodes** array with the filtered nodes. And after that, only the filtered data will be published.
+
+```
+else {
+
+                    int ANGLE_MIN = RAD2DEG(angle_min);
+                    int ANGLE_MAX = RAD2DEG(angle_max);
+                    const int MAX_NODES = 8192;
+                    
+                    sl_lidar_response_measurement_node_hq_t filtered_nodes[MAX_NODES];
+                    int filtered_count = 0;
+                    int start_node = 0, end_node = 0;
+                    int i = 0;
+
+                    // find the first valid node and last valid node
+                   for(; i < count && (getAngle(nodes[i]) < ANGLE_MIN || getAngle(nodes[i]) > ANGLE_MAX); ++i) {}
+
+                    start_node = i;
+
+                    // find the last valid node
+                    for(; i < count && getAngle(nodes[i]) <= ANGLE_MAX; ++i) {}
+
+                    end_node = i - 1;
+
+                    // filter nodes
+                    for(int i = start_node; i <= end_node; ++i) {
+                        const float distance = nodes[i].dist_mm_q2 / 4.0f / 1000;
+                        if(distance > 0 && distance < 8) {
+                            filtered_nodes[filtered_count++] = nodes[i];
+                        }
+                    }
+                    publish_scan(&scan_pub, filtered_nodes, filtered_count,
+                                start_scan_time, scan_duration, inverted,
+                                angle_min, angle_max, max_distance,
+                                frame_id);
+```
+This code section finds the first (**start_node**) and last (**end_node**) valid nodes that fall within the angle range, filters the nodes based on distance in meters, and publishes the filtered data as a scan.
