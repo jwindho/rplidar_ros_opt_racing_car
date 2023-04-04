@@ -41,7 +41,7 @@ const double DEG2RAD = M_PI / 180.0;
 const double RAD2DEG = 180.0 / M_PI;
 
 float angle_min = DEG2RAD*0.0f;
-float angle_max = DEG2RAD*360.0f;
+float angle_max = DEG2RAD*370.0f;
 
 void publish_scan(
                   NodeInfo nodes,
@@ -86,12 +86,12 @@ void publish_scan(
     */
     
     
-
+   
     for (size_t i = 0; i < node_count; ++i) {
         
-        cout << "Angle = " << nodes.getAngle(i) << "    Distance = " << nodes.getDistance(i) << endl; 
+        cout << "Angle = " << RAD2DEG*nodes.getAngle(i) << "    Distance = " << nodes.getDistance(i) << endl; 
     }
-
+    
   
 }
 
@@ -119,15 +119,20 @@ int main() {
 
     Timer timer;
 
-    const int size_data = 4;
+    const int size_data = 10;
 
     NodeInfo nodes(size_data); // Größe der Arrays ist 8192
     
-    double distances[size_data] = {5.0, 7.0, 1.0, 3.0 };
+    double distances[size_data] = {5.0, 10.0, 1.0, 3.0, 8.0, 2.0 , 4.0, 10 , 3.0 , 0.0};
     nodes.setDistance(distances);
     
-    double angles[size_data] = {0, M_PI/2 , M_PI , 2*M_PI};
+    double angles[size_data] = {0, M_PI/2 , M_PI , 2*M_PI , 0.0 , M_PI/4 , M_PI/2, M_PI , 1.5*M_PI, 2*M_PI};
     nodes.setAngle(angles);
+    
+
+    
+
+    
 
 
     std::string channel_type;
@@ -153,7 +158,7 @@ int main() {
     double scan_duration;
     int loop = 0;
     
-    while (loop < 1) {
+    while (loop < 1) {   //min 100000 um einen konstanten wert für Elipse Time zu erhalten 
        
         size_t   count = size_data;
 
@@ -162,7 +167,10 @@ int main() {
         double start_scan_time = 0;
         double end_scan_time = 100;
         scan_duration = (end_scan_time - start_scan_time);
-        angle_compensate = true; 
+        angle_compensate = true ; 
+
+        int ANGLE_MIN = RAD2DEG*angle_min;
+        int ANGLE_MAX = RAD2DEG*angle_max;
 
 
                 if (angle_compensate) {
@@ -170,11 +178,12 @@ int main() {
 
                     int filtered_count = 0;
                     NodeInfo filtered_nodes(size_data);
+
                     for (int i = 0; i < count; i++) {
-                        if (getAngle(nodes.getAngle(i)) >= RAD2DEG*angle_min && getAngle(nodes.getAngle(i)) <= RAD2DEG*angle_max) {
+                        if (getAngle(nodes.getAngle(i)) >= ANGLE_MIN && getAngle(nodes.getAngle(i)) <= ANGLE_MAX) {
                             
                             
-                            filtered_nodes.setAngle(filtered_count++, nodes.getAngle(i));
+                            filtered_nodes.setAngle(filtered_count, nodes.getAngle(i));
                             filtered_nodes.setDistance(filtered_count++, nodes.getDistance(i));
                             
                             
@@ -183,7 +192,7 @@ int main() {
 
 
                     // Winkelkorrektur auf gefilterte Scan-Daten anwenden
-                    const int angle_compensate_nodes_count = RAD2DEG*angle_max * angle_compensate_multiple;
+                    const int angle_compensate_nodes_count = ANGLE_MAX* angle_compensate_multiple;
                     int angle_compensate_offset = 0;
                     NodeInfo angle_compensate_nodes(angle_compensate_nodes_count);
 
@@ -211,12 +220,12 @@ int main() {
                     NodeInfo compensate_nodes(size_data);
 
                     for (int i = 0; i < angle_compensate_nodes_count; i++) {
-                        if (angle_compensate_nodes.getDistance(i) / 4.0f / 1000 > 0 && angle_compensate_nodes.getDistance(i) / 4.0f / 1000 < 8) {
+                        if (angle_compensate_nodes.getDistance(i)  > 0 && angle_compensate_nodes.getDistance(i) < 8) {
                             
                             
                             
                             
-                            compensate_nodes.setDistance(compensate_count++, angle_compensate_nodes.getDistance(i));
+                            compensate_nodes.setDistance(compensate_count, angle_compensate_nodes.getDistance(i));
                             compensate_nodes.setAngle(compensate_count++, angle_compensate_nodes.getAngle(i)); //
 
                         }
@@ -231,8 +240,7 @@ int main() {
                 
                 } else {
 
-                    int ANGLE_MIN = RAD2DEG*angle_min;
-                    int ANGLE_MAX = RAD2DEG*angle_max;
+                    
                     const int MAX_NODES = size_data;
                     
                     NodeInfo filtered_nodes(MAX_NODES);
@@ -240,6 +248,7 @@ int main() {
                     int start_node = 0, end_node = 0;
                     int i = 0;
 
+                    
                     // find the first valid node and last valid node
                    for(; i < count && (getAngle(nodes.getAngle(i)) < ANGLE_MIN || getAngle(nodes.getAngle(i)) > ANGLE_MAX); ++i) {}
 
@@ -250,13 +259,16 @@ int main() {
 
                     end_node = i - 1;
 
+                    
                     // filter nodes
-                    for(int i = start_node; i <= end_node; ++i) {
-                        const float distance = nodes.getDistance(i) / 4.0f / 1000;
+
+                    
+                    for(int i = start_node; i <= end_node; i++) {
+                        float distance = nodes.getDistance(i) ;
                         if(distance > 0 && distance < 8) {
 
 
-                            filtered_nodes.setAngle(filtered_count++, nodes.getAngle(i));
+                            filtered_nodes.setAngle(filtered_count, nodes.getAngle(i));
                             filtered_nodes.setDistance(filtered_count++, nodes.getDistance(i));
 
                        
