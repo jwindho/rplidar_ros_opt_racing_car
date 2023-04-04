@@ -1,4 +1,6 @@
 # Performance documentation
+
+# ROS Performance 
 The default code shows that the lidar transfers its data with a bandwidth of 35.01 KB/s and a frequency of 11.84 Hz.
 After some initial changes, such as adjusting the angle from 360° to 30° (specified here in radians),
 we can see that the bandwidth has decreased to 18.26 KB/s and the frequency has increased to 12 Hz.
@@ -15,3 +17,14 @@ Further changes to the code will follow.
 # Changed
 
 ![benchmarking_v1](https://user-images.githubusercontent.com/84909827/223700629-387e3d76-2d24-4b9e-abc5-66c682005718.PNG)
+
+
+# Code Performance
+
+*The code being discussed is located in the "performance" directory* 
+
+Our primary goal is to evaluate the code's performance, focusing specifically on its ability to process the files sent by the Lidar. To accomplish this, we removed all superfluous ROS applications and pruned code sections that only run once during start-up. We simulated the Lidar data packet with a custom class called "node_info" to test the code without having to connect the Lidar sensor.
+
+We can create an instance of the "node_info" class in the main program and supply it with data to test the performance of the actual data processing. By utilizing a timer to measure the exact amount of time it takes for the program to execute once, we can assess the code's efficiency.
+
+We made optimizations to the code and then integrated it into the primary program. The specific modifications can be observed in the commits.
