@@ -21,7 +21,8 @@ Further changes to the code will follow.
 
 # Code Performance
 
-*The code being discussed is located in the "performance" directory* 
+*The code being discussed is located in the* [performance] (/rplidar_ros_opt_race_car/performance/)
+*directory*
 
 Our primary goal is to evaluate the code's performance, focusing specifically on its ability to process the files sent by the Lidar. To accomplish this, we removed all superfluous ROS applications and pruned code sections that only run once during start-up. We simulated the Lidar data packet with a custom class called "node_info" to test the code without having to connect the Lidar sensor.
 

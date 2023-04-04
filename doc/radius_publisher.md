@@ -1,6 +1,10 @@
+# Radius Publisher
+
+You can find the code discussed here in the [src](/rplidar_ros_opt_race_car/src/) directory
+
+We incorporated this publisher to facilitate the adjustment of angle limitations as required. With this feature, you can modify the angle limitation during the program's runtime without the need to repeatedly save the changes.
 
 ## Code description:
-
 
 ### radius_publisher_cmdline.cpp
 
