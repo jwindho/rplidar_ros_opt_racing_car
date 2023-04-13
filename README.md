@@ -4,7 +4,7 @@ We created this branch to optimize and test the code used in the main branch.
 
 Here, you will also find the documentation on this project: 
 
-[setup instructions for Ubuntu and ROS](/rplidar_ros_opt_race_car/doc/setup_ubuntu_ros.md)
+[setup instructions for Ubuntu and ROS](doc/setup_ubuntu_ros.md)
 
 
 [description of the code](/rplidar_ros_opt_race_car/doc/code_description.md)
