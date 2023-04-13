@@ -14,7 +14,7 @@ A Main branch has been created for pulling the finished code.
 
 The opt-main branch, on the other hand, was created for understanding, testing and optimizing the code. Therefore, you will also find the documentation there.
 
-#Main branch description: 
+# Main branch description: 
 
 The actual code for starting the LIDAR sensor and reading the data can be found in the [src](src) folder. If you do not know how to start it or need further information about the code, help can be found in the doc-folder of the opt-main branch.
 
