@@ -10,6 +10,10 @@ In addition to the fastest possible data transmission, the position of the lidar
 For example, if the lidar is installed at the front of the car, only a certain radius is relevant for our data processing.
 The primary goal of this project is to detect objects and thereby promote the fastest possible reaction speed of the vehicle.
 
+A Main branch has been created for pulling the finished code. 
+
+The opt-main branch, on the other hand, was created for understanding, testing and optimizing the code. Therefore, you will also find the documentation there.
+
 
 
 
