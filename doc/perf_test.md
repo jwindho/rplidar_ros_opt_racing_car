@@ -21,11 +21,11 @@ Further changes to the code will follow.
 
 # Code Performance
 
-*The code being discussed is located in the* [performance](/jwindho/rplidar_ros_opt_racing_car/performance/)
+*The code being discussed is located in the* [performance](./rplidar_ros_opt_racing_car/performance/)
 *directory*
 
 Our primary goal is to evaluate the code's performance, focusing specifically on its ability to process the files sent by the Lidar. To accomplish this, we removed all superfluous ROS applications and pruned code sections that only run once during start-up. We simulated the Lidar data packet with a custom class called "node_info" to test the code without having to connect the Lidar sensor.
 
-We can create an instance of the ["node_info"](/jwindho/rplidar_ros_opt_racing_car/performace/node_info.cpp) class in the main program and supply it with data to test the performance of the actual data processing. By utilizing a timer to measure the exact amount of time it takes for the program to execute once, we can assess the code's efficiency.
+We can create an instance of the ["node_info"](./rplidar_ros_opt_racing_car/performace/node_info.cpp) class in the main program and supply it with data to test the performance of the actual data processing. By utilizing a timer to measure the exact amount of time it takes for the program to execute once, we can assess the code's efficiency.
 
 We made optimizations to the code and then integrated it into the primary program. The specific modifications can be observed in the commits.
