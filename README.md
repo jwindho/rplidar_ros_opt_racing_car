@@ -1,8 +1,6 @@
 # Description: 
 
-We created this branch to optimize and test the code used in the main branch. 
-
-**Here, you will also find the [documentation](doc) on this project:**
+We created this branch to optimize and test the code used in the main branch. For example, we have created an additional client and adapted the code for testing performance. All information about the changes and extensions can be found in the [documentation](doc): 
 
 If you have not yet set up Ubuntu and have not yet installed ROS in Ubuntu, please use the following link to obtain detailed instructions:
 
