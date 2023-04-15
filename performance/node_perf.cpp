@@ -17,6 +17,9 @@ using namespace std;
 
 #include <chrono>
 
+
+
+// Timer zum teseten des Codes (die Zeit die der Code benötigt um die While-Schleife zu beenden)
 class Timer {
 public:
     Timer() : m_startTime(std::chrono::high_resolution_clock::now()) {}
@@ -40,8 +43,8 @@ private:
 const double DEG2RAD = M_PI / 180.0;
 const double RAD2DEG = 180.0 / M_PI;
 
-float angle_min = DEG2RAD*0.0f;
-float angle_max = DEG2RAD*370.0f;
+float angle_min = DEG2RAD*(0.0f);
+float angle_max = DEG2RAD*361.0f;
 
 void publish_scan(
                   NodeInfo nodes,
@@ -57,49 +60,25 @@ void publish_scan(
     const float angle_offset = M_PI;
     const bool reversed = angle_max > angle_min;
 
-
-
     scan_count++;
-    //Unnötig ?
+  
     const float angle_min_rad = angle_offset + M_PI - (reversed ? angle_max : angle_min);
     const float angle_max_rad = angle_offset + M_PI - (reversed ? angle_min : angle_max);
-    //
+   
 
     const float angle_increment = (angle_max_rad - angle_min_rad) / (node_count - 1);
 
 
     const float time_increment = scan_time / (node_count - 1);
 
-    /*
-    sensor_msgs::LaserScan scan_msg;
-    scan_msg.header.stamp = start;
-    scan_msg.header.frame_id = frame_id;
-    scan_msg.angle_min = angle_min_rad;     //was bringt mir diese Berechnung und information ?
-    scan_msg.angle_max = angle_max_rad;     
-    scan_msg.angle_increment = angle_increment;
-    scan_msg.time_increment = time_increment;
-    scan_msg.scan_time = scan_time;
-    scan_msg.range_min = range_min;
-    scan_msg.range_max = max_distance;
-    scan_msg.intensities.resize(node_count);
-    scan_msg.ranges.resize(node_count);
-    */
-    
-    
-   
+/*
     for (size_t i = 0; i < node_count; ++i) {
         
         cout << "Angle = " << RAD2DEG*nodes.getAngle(i) << "    Distance = " << nodes.getDistance(i) << endl; 
     }
-    
-  
+*/    
+
 }
-
-
-
-
-
-
 
 
 static float getAngle(double node)
@@ -107,11 +86,7 @@ static float getAngle(double node)
     return RAD2DEG * node  ;
 }
 
-//Callback Funktion um den Max und Min Radius zu setzten 
 
-
-
-/**/
 int main() {
     
 
@@ -119,14 +94,17 @@ int main() {
 
     Timer timer;
 
+
+
+    // simulierung der Daten 
     const int size_data = 10;
 
-    NodeInfo nodes(size_data); // Größe der Arrays ist 8192
+    NodeInfo nodes(size_data); 
     
-    double distances[size_data] = {5.0, 10.0, 1.0, 3.0, 8.0, 2.0 , 4.0, 10 , 3.0 , 0.0};
+    double distances[size_data] = {5.0, 1.0, 1.0, 0.0, 8.0, 2.0 , 4.0, 1 , 3.0 , 1.0};
     nodes.setDistance(distances);
     
-    double angles[size_data] = {0, M_PI/2 , M_PI , 2*M_PI , 0.0 , M_PI/4 , M_PI/2, M_PI , 1.5*M_PI, 2*M_PI};
+    double angles[size_data] = {0, M_PI/10 , M_PI/8 , M_PI/6 , M_PI/5 , M_PI/4 , M_PI/2, M_PI , 1.5*M_PI, 2*M_PI};
     nodes.setAngle(angles);
     
 
@@ -145,20 +123,23 @@ int main() {
     std::string frame_id;
     bool inverted = false;
     bool angle_compensate = true;    
-    float angle_compensate_multiple = 1.0;//min 360 ponits at per 1 degree
-    int points_per_circle = 360;//min 360 ponits at per circle 
+    float angle_compensate_multiple = 1.0;
+    int points_per_circle = 360;
     std::string scan_mode;
     float max_distance;
     double scan_frequency;
     
+    angle_compensate_multiple = points_per_circle/360.0  + 1;
 
+    
+    angle_compensate = true; // auswahl zum Testen der zwei Schleifen 
 
     
 
     double scan_duration;
     int loop = 0;
     
-    while (loop < 1) {   //min 100000 um einen konstanten wert für Elipse Time zu erhalten 
+    while (loop < 100000) {   //min 100000 um einen konstanten wert für Elipse Time zu erhalten 
        
         size_t   count = size_data;
 
@@ -167,14 +148,14 @@ int main() {
         double start_scan_time = 0;
         double end_scan_time = 100;
         scan_duration = (end_scan_time - start_scan_time);
-        angle_compensate = true ; 
+        
 
         int ANGLE_MIN = RAD2DEG*angle_min;
         int ANGLE_MAX = RAD2DEG*angle_max;
 
 
                 if (angle_compensate) {
-                     // Filtere die Scan-Daten nach Winkel
+                    
 
                     int filtered_count = 0;
                     NodeInfo filtered_nodes(size_data);
@@ -192,6 +173,7 @@ int main() {
 
 
                     // Winkelkorrektur auf gefilterte Scan-Daten anwenden
+
                     const int angle_compensate_nodes_count = ANGLE_MAX* angle_compensate_multiple;
                     int angle_compensate_offset = 0;
                     NodeInfo angle_compensate_nodes(angle_compensate_nodes_count);
@@ -208,8 +190,6 @@ int main() {
 
                         for (int j = start; j < end ; j++) { 
                             
-                            
-                            
                             angle_compensate_nodes.setAngle(j ,filtered_nodes.getAngle(i));
                             angle_compensate_nodes.setDistance(j, filtered_nodes.getDistance(i));
 
@@ -220,13 +200,12 @@ int main() {
                     NodeInfo compensate_nodes(size_data);
 
                     for (int i = 0; i < angle_compensate_nodes_count; i++) {
-                        if (angle_compensate_nodes.getDistance(i)  > 0 && angle_compensate_nodes.getDistance(i) < 8) {
-                            
-                            
+                        if (angle_compensate_nodes.getDistance(i)  > 0 && angle_compensate_nodes.getDistance(i) < 800) {
+                                                        
                             
                             
                             compensate_nodes.setDistance(compensate_count, angle_compensate_nodes.getDistance(i));
-                            compensate_nodes.setAngle(compensate_count++, angle_compensate_nodes.getAngle(i)); //
+                            compensate_nodes.setAngle(compensate_count++, angle_compensate_nodes.getAngle(i)); 
 
                         }
                     }
