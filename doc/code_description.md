@@ -68,17 +68,16 @@ void publish_scan(ros::Publisher* pub,
     const bool reversed = angle_max > angle_min;
 
     scan_count++;
-    //Unnötig ?
     const float angle_min_rad = angle_offset + M_PI - (reversed ? angle_max : angle_min);
     const float angle_max_rad = angle_offset + M_PI - (reversed ? angle_min : angle_max);
-    //
+    
     const float angle_increment = (angle_max_rad - angle_min_rad) / (node_count - 1);
     const float time_increment = scan_time / (node_count - 1);
     sensor_msgs::LaserScan scan_msg;
     scan_msg.header.stamp = start;
     scan_msg.header.frame_id = frame_id;
-    scan_msg.angle_min = angle_min_rad;     //was bringt mir diese Berechnung und information ?
-    scan_msg.angle_max = angle_max_rad;     //
+    scan_msg.angle_min = angle_min_rad;     
+    scan_msg.angle_max = angle_max_rad;  
     scan_msg.angle_increment = angle_increment;
     scan_msg.time_increment = time_increment;
     scan_msg.scan_time = scan_time;
@@ -263,7 +262,7 @@ The code initializes the ROS node **rplidar_node** and sets up parameters for co
     ros::ServiceServer start_motor_service = nh.advertiseService("start_motor", start_motor);
 
     if(!scan_frequency_tunning_after_scan){ //for RPLIDAR A serials
-       //start RPLIDAR A serials  rotate by pwm
+       //start RPLIDAR A serials rotate by pwm
         drv->setMotorSpeed(600);     
     }
 ```
@@ -354,7 +353,7 @@ If the **op_result** is equal to **SL_RESULT_OK**, which indicates a successful 
 if (op_result == SL_RESULT_OK) {
                 
                 if (angle_compensate) {
-                     // Filtere die Scan-Daten nach Winkel
+                     // Filters the scan data by angle
                     int filtered_count = 0;
                     sl_lidar_response_measurement_node_hq_t filtered_nodes[8192];
                     for (int i = 0; i < count; i++) {
@@ -363,7 +362,7 @@ if (op_result == SL_RESULT_OK) {
                         }
                     }
 
-                    // Winkelkorrektur auf gefilterte Scan-Daten anwenden
+                    // Apply angle correction to filtered scan data
                     const int angle_compensate_nodes_count = RAD2DEG(angle_max) * angle_compensate_multiple;
                     int angle_compensate_offset = 0;
                     std::vector<sl_lidar_response_measurement_node_hq_t> angle_compensate_nodes(angle_compensate_nodes_count);
@@ -390,8 +389,7 @@ if (op_result == SL_RESULT_OK) {
                         }
                     }
 
-                    // veröffentliche nur die korrigierten Scan-Daten
-                   
+                    // publish only corrected scan data                   
                     publish_scan(&scan_pub, compensate_nodes, compensate_count,
                                 start_scan_time, scan_duration, inverted,
                                 angle_min, angle_max, max_distance,
